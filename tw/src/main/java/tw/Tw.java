@@ -33,18 +33,15 @@ public class Tw {
 			bannedWords
 			.add(sc.nextLine());
 		}
-		final StreamExecutionEnvironment env = StreamExecutionEnvironment.getExecutionEnvironment();
-		Properties twitterCredentials = new Properties();
-		twitterCredentials.setProperty(TwitterSource.CONSUMER_KEY, "9Nf7plP8C7tTt6eCvhFROQMZ2");
-		twitterCredentials.setProperty(TwitterSource.CONSUMER_SECRET, "izMDKdfI8NSoFpqoDxPQZgPfCVFk8qbnKMFEpKA7MTeUEiouhe");
-		twitterCredentials.setProperty(TwitterSource.TOKEN, "4707001976-ufKseTS2WWYi2dZSPMYpiL8SmjOwSecHfMqTkzL");
-		twitterCredentials.setProperty(TwitterSource.TOKEN_SECRET, "kNyNgSvtpE0zwwHRhVhBKYxdtFp2z3vssJpE3BCIQ1WVI");
-		DataStream<String> twitterData = env.addSource(new TwitterSource(twitterCredentials));
 
-		DataStream<JsonNode> filteredData = twitterData.map(new TweetJsonParser())
-				.filter(new LanguageFilter())
-				.filter(new FilterOutBannedWords(bannedWords));
-
+				final StreamExecutionEnvironment env =  StreamExecutionEnvironment.getExecutionEnvironment();
+		
+		Properties property = new Properties();
+		property.setProperty("bootstrap.servers", "127.0.0.1:9092");
+		
+		DataStream<String> kafkaData = env.addSource(new FlinkKafkaConsumer011("twitterStream", new SimpleStringSchema(), property));
+		DataStream<JsonNode> tweetJsonData = kafkaData.map(new TweetJsonParser());
+		DataStream<JsonNode> filteredData = tweetJsonData.filter(new TextFilter()).filter(new LanguageFilter());
 		DataStream<Tuple2<String, JsonNode>> tweetsBySource = filteredData.map(new ExtractSource());
 		tweetsBySource.map(new ExtractHour())
 		.keyBy(0, 1)
